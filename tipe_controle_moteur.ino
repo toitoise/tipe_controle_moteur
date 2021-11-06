@@ -32,7 +32,8 @@
 // LCD 20x4 Declaration (i2c pins connexion)
 //-------------------------------------------------------
 #define POS_SPEED 11
-LiquidCrystal_I2C lcd(0x27, 20, 4); // 2 lines/16 chars
+LiquidCrystal_I2C lcd(0x27, 20, 4);
+//LiquidCrystal_I2C lcd(0x3F,20,4);
 
 // DRV8825 instance 
 #define motorInterfaceType 1
@@ -121,10 +122,20 @@ void setup() {
 	myStepper.setAcceleration(100);
 	//myStepper.setSpeed(100);
 	myStepper.moveTo(200000);
-	Serial.println("Exit Setup");
 	
 	// Active l'interruption sur la pin 2
 	attachInterrupt(digitalPinToInterrupt(comparator), interrupt_tachymeter, RISING );
+	// initialisation de l'afficheur / Message d'accueil
+	lcd.init(); 
+	lcd.backlight();
+	lcd.setCursor(2, 0);
+	lcd.print("Hello, Half-God!");
+	lcd.setCursor(4, 1);
+	lcd.print("Motor Control");
+	delay(5000);
+	lcd.clear();
+ 
+	Serial.println("Exit Setup");
 }
 
 //---------------------------------------------------------------------------------
