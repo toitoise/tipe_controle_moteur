@@ -65,19 +65,19 @@ int motor_speed_new     = 0;     // new speed
 // High		High	High	1/32 step
 //-------------------------------------------------
 #define ligneTab 	10   		// 0 à 9
-#define colonneTab 	4   		// 0 à 3
+#define colonneTab 	5   		// 0 à 4
 int speed_prog[ligneTab][colonneTab] = {  
-	//MaxSpeed, M2, M1, M0
-	{	100,	1, 	1, 	1} ,    // Stop
-	{	100,	1, 	1, 	1} ,   	// 10s		0.1 Hz
-	{	100,	0, 	1, 	0} ,   	// 7.5s		0.13Hz
-	{	100,	0, 	1, 	0} ,   	// 5.0s		0.2 Hz
-	{	100,	0, 	1, 	0} ,    // 2.5s		0.4 Hz
-	{	100,	0, 	1, 	0} ,   	// 1.0s		1.0 Hz
-	{	100,	0, 	1, 	0} ,   	// 0.75s	1.33Hz
-	{	100,	0, 	1, 	0} ,   	// 0.50s	2.0 Hz
-	{	100,	0, 	0, 	0} ,   	// 0.25s	4.0 Hz
-	{	100,	0, 	0, 	0}    	// 0.10s	10	Hz
+	//MaxSpeed, M2, M1, M0 , Enable_n
+	{	100,	0, 	0, 	0,  1} ,    // Stop
+	{	100,	1, 	1, 	1,  0} ,   	// 10s		0.1 Hz
+	{	100,	0, 	1, 	0,  0} ,   	// 7.5s		0.13Hz
+	{	100,	0, 	1, 	0,  0} ,   	// 5.0s		0.2 Hz
+	{	100,	0, 	1, 	0,  0} ,    // 2.5s		0.4 Hz
+	{	100,	0, 	1, 	0,  0} ,   	// 1.0s		1.0 Hz
+	{	100,	0, 	1, 	0,  0} ,   	// 0.75s	1.33Hz
+	{	100,	0, 	1, 	0,  0} ,   	// 0.50s	2.0 Hz
+	{	100,	0, 	0, 	0,  0} ,   	// 0.25s	4.0 Hz
+	{	100,	0, 	0, 	0,  0}    	// 0.10s	10	Hz
 };
 
 
@@ -108,7 +108,7 @@ void setup() {
 	digitalWrite(M2, 	LOW);
 	digitalWrite(reset_n, LOW);
 	digitalWrite(sleep_n, LOW);
-	digitalWrite(enable_n,LOW);
+	digitalWrite(enable_n,HIGH);
 	
 	// set the maximum speed, acceleration factor,
 	// initial speed and the target position
