@@ -3,6 +3,7 @@
 #include <Wire.h>
 #include <Stepper.h>
 #include <LiquidCrystal_I2C.h>
+#include <math.h>
 
 //-------------------------------------------------------
 // Define drv8825 pin connections to Arduino UNO
@@ -48,6 +49,8 @@ volatile unsigned long previousmillis 	= 0;
 int clk_state_last      = LOW;            // Idle
 int clk_state           = LOW;            // Idle
 int button_state        = HIGH;           // Not pressed
+unsigned long button_millis_save = 0;
+unsigned long button_millis_cur = 0;
 
 // Variables traitement vitesse
 int motor_speed_cur     = 0;     // current speed
@@ -65,20 +68,24 @@ int motor_speed_new     = 0;     // new speed
 // Low		High	High	1/32 step
 // High		High	High	1/32 step
 //-------------------------------------------------
+const int microsteps[] = {1,2,4,8,16,32,32,32};
+#define MICROSTEPS_SIZE sizeof(microsteps)/sizeof(int)
+unsigned int microsteps_ratio=0;
+
 #define ligneTab 	10   		// 0 à 9
 #define colonneTab 	5   		// 0 à 4
-int speed_prog[ligneTab][colonneTab] = {  
-	//MaxSpeed, M2, M1, M0 , Enable_n
-	{	100,	0, 	0, 	0,  1} ,    // Stop
-	{	100,	1, 	1, 	1,  0} ,   	// 10s		0.1 Hz
-	{	100,	0, 	1, 	0,  0} ,   	// 7.5s		0.13Hz
-	{	100,	0, 	1, 	0,  0} ,   	// 5.0s		0.2 Hz
-	{	100,	0, 	1, 	0,  0} ,    // 2.5s		0.4 Hz
-	{	100,	0, 	1, 	0,  0} ,   	// 1.0s		1.0 Hz
-	{	100,	0, 	1, 	0,  0} ,   	// 0.75s	1.33Hz
-	{	100,	0, 	1, 	0,  0} ,   	// 0.50s	2.0 Hz
-	{	100,	0, 	0, 	0,  0} ,   	// 0.25s	4.0 Hz
-	{	100,	0, 	0, 	0,  0}    	// 0.10s	10	Hz
+const int speed_prog[ligneTab][colonneTab] = {  
+	      //MaxSpeed, M2, M1, M0 , Enable_n
+/*00*/	{	100,	    0, 	0, 	0,   1} ,    // Stop
+/*01*/	{	64 ,	    1, 	1, 	1,   0} ,   	// 10s		0.1 Hz    600rpm
+/*02*/	{	85 ,	    1, 	1, 	1,   0} ,   	// 7.5s		0.13Hz    450rpm
+/*03*/	{	64 ,	    1, 	0, 	0,   0} ,   	// 5.0s		0.2 Hz    300rpm
+/*04*/	{	128,	    1, 	0, 	0,   0} ,    // 2.5s		0.4 Hz    150rpm
+/*05*/	{	160,	    0, 	1, 	1,   0} ,   	// 1.0s		1.0 Hz    60 rpm
+/*06*/	{	213,	    0, 	1, 	1,   0} ,   	// 0.75s	1.33Hz    45 rpm
+/*07*/	{ 160,	    0, 	1, 	0,   0} ,   	// 0.50s	2.0 Hz    30 rpm
+/*08*/	{	160,	    0, 	0, 	1,   0} ,   	// 0.25s	4.0 Hz    15 rpm
+/*09*/	{	200,	    0, 	0, 	0,   0}     	// 0.10s	10	Hz     6 rpm
 };
 
 //---------------------------------------------------------------------------------
@@ -110,7 +117,7 @@ void setup() {
 	digitalWrite(M1,   	LOW);
 	digitalWrite(M2, 	LOW);
 
-	// De-assert drv8825 reset_n
+	// De-Assert drv8825 reset_n
 	digitalWrite(reset_n, HIGH);
 	
 	// set the maximum speed, acceleration factor,
@@ -144,10 +151,13 @@ void setup() {
 void loop() {
 
 	// Get Button state
-	clk_state    = digitalRead(encoderClk);
-	button_state = digitalRead(encoderSwitch);
-
-	if (button_state == LOW) {
+	clk_state         = digitalRead(encoderClk);
+	button_state      = digitalRead(encoderSwitch);
+  button_millis_cur = millis();
+  
+  // check state and add debouncer
+	if (button_state == LOW && (button_millis_cur - button_millis_save)>500) {
+   button_millis_save=millis();
 		// Set NEW speed
 		motor_speed_cur = motor_speed_new;	// update click
 		lcd.clear();
@@ -163,12 +173,14 @@ void loop() {
 		digitalWrite(M2, 	  speed_prog[motor_speed_cur][1]);
 		digitalWrite(enable_n,speed_prog[motor_speed_cur][4]);
 
+   microsteps_ratio=microsteps[ speed_prog[motor_speed_cur][3] | (speed_prog[motor_speed_cur][2]<<1) | (speed_prog[motor_speed_cur][1]<<2) ];
+
+  double rpm_speed= (speed_prog[motor_speed_cur][0] * 3 )/microsteps_ratio;
+
 	Serial.println("MaxSpeed, M2, M1, M0 , Enable_n");
 	Serial.println(speed_prog[motor_speed_cur][0]);
-	Serial.println(speed_prog[motor_speed_cur][1]);
-	Serial.println(speed_prog[motor_speed_cur][2]);
-	Serial.println(speed_prog[motor_speed_cur][3]);
-	Serial.println(speed_prog[motor_speed_cur][4]);
+  Serial.println(microsteps_ratio);
+  Serial.println(rpm_speed);
 
 		myStepper.moveTo(MAX_ROTATION);			// Define target
 		myStepper.run();						// run to Target
@@ -179,7 +191,7 @@ void loop() {
 		if ((clk_state_last == LOW) && (clk_state == HIGH)) {
 			// Read rotary Data pin to know which direction increase/decrease new speed
 			if (digitalRead(encoderData) == LOW) {
-				if (motor_speed_new < ligneTab)
+				if (motor_speed_new < (ligneTab-1))
 					motor_speed_new = motor_speed_new + 1;
 			} else {
 				if (motor_speed_new > 0)
