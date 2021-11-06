@@ -1,6 +1,8 @@
 // Include the AccelStepper Library
 #include <AccelStepper.h>
-
+#include <Wire.h>
+#include <Stepper.h>
+#include <LiquidCrystal_I2C.h>
 //-------------------------------------------------------
 // Define drv8825 pin connections to Arduino UNO
 //-------------------------------------------------------
@@ -8,9 +10,9 @@
 #define step        	4
 #define sleep_n       	5
 #define reset_n       	6
-#define m2        		7
-#define m1        		8
-#define m0		       	9
+#define M2        		7
+#define M1        		8
+#define M0		       	9
 #define enable_n       	10
 
 //-------------------------------------------------------
@@ -28,6 +30,7 @@
 //-------------------------------------------------------
 // LCD 20x4 Declaration (i2c pins connexion)
 //-------------------------------------------------------
+#define POS_SPEED 11
 LiquidCrystal_I2C lcd(0x27, 20, 4); // 2 lines/16 chars
 
 // DRV8825 instance 
@@ -49,10 +52,21 @@ int motor_speed_cur     = 0;     // current speed
 int motor_speed_new     = 0;     // new speed
 #define MAX_ROTATION	200000
 
+//-------------------------------------------------
+// M0		M1		M2		Microstep resolution
+// Low		Low		Low		Full step
+// High		Low		Low		1/2 step
+// Low		High	Low		1/4 step
+// High		High	Low		1/8 step
+// Low		Low		High	1/16 step
+// High		Low		High	1/32 step
+// Low		High	High	1/32 step
+// High		High	High	1/32 step
+//-------------------------------------------------
 #define ligneTab 	10   		// 0 à 9
 #define colonneTab 	4   		// 0 à 3
 int speed_prog[ligneTab][colonneTab] = {  
-	//maxSpeed, m2, m1, m0
+	//MaxSpeed, M2, M1, M0
 	{	100,	1, 	1, 	1} ,    // Stop
 	{	100,	1, 	1, 	1} ,   	// 10s		0.1 Hz
 	{	100,	0, 	1, 	0} ,   	// 7.5s		0.13Hz
@@ -74,9 +88,9 @@ void setup() {
 	Serial.println("Enter Setup");
 	
 	// Outputs definitions
-	pinMode(m0,   		OUTPUT);
-	pinMode(m1,   		OUTPUT);
-	pinMode(m2, 		OUTPUT);
+	pinMode(M0,   		OUTPUT);
+	pinMode(M1,   		OUTPUT);
+	pinMode(M2, 		OUTPUT);
 	pinMode(reset_n, 	OUTPUT);
 	pinMode(sleep_n, 	OUTPUT);
 	pinMode(enable_n, 	OUTPUT);
@@ -88,9 +102,9 @@ void setup() {
 	pinMode (comparator, 		INPUT_PULLUP);
 	
 	// Outputs default value
-	digitalWrite(m0,   	LOW);
-	digitalWrite(m1,   	LOW);
-	digitalWrite(m2, 		LOW);
+	digitalWrite(M0,   	LOW);
+	digitalWrite(M1,   	LOW);
+	digitalWrite(M2, 		LOW);
 	digitalWrite(reset_n, LOW);
 	digitalWrite(sleep_n, LOW);
 	digitalWrite(enable_n,LOW);
@@ -166,8 +180,6 @@ void loop() {
 	//myStepper.runSpeed();
 	myStepper.run();
 	
-	
-	
 	// If time update then interrupt occurs (debug)
 	if (currentmillis!=previousmillis){
 		periode=(currentmillis-previousmillis)/3; // rapport engrenage de 3
@@ -177,7 +189,7 @@ void loop() {
 	}
 }
 
-
+// Interrupt function to update TIME and compute periode
 void interrupt_tachymeter(){
   // Update du chrono en milli secondes
   currentmillis = millis();
