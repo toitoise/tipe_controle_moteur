@@ -9,7 +9,7 @@
 //-------------------------------------------------------
 #define dir         	3
 #define step        	4
-#define sleep_n       	5
+#define sleep_n       	5		// not connected tied to VCC
 #define reset_n       	6
 #define M2        		7
 #define M1        		8
@@ -80,7 +80,6 @@ int speed_prog[ligneTab][colonneTab] = {
 	{	100,	0, 	0, 	0,  0}    	// 0.10s	10	Hz
 };
 
-
 //---------------------------------------------------------------------------------
 // SETUP
 //---------------------------------------------------------------------------------
@@ -89,12 +88,12 @@ void setup() {
 	Serial.println("Enter Setup");
 	
 	// Outputs definitions
-	pinMode(M0,   		OUTPUT);
-	pinMode(M1,   		OUTPUT);
-	pinMode(M2, 		OUTPUT);
 	pinMode(reset_n, 	OUTPUT);
 	pinMode(sleep_n, 	OUTPUT);
 	pinMode(enable_n, 	OUTPUT);
+	pinMode(M0,   		OUTPUT);
+	pinMode(M1,   		OUTPUT);
+	pinMode(M2, 		OUTPUT);
 	
 	// Inputs definitions
 	pinMode (encoderClk,    	INPUT);
@@ -103,12 +102,15 @@ void setup() {
 	pinMode (comparator, 		INPUT_PULLUP);
 	
 	// Outputs default value
+	digitalWrite(reset_n, LOW);		// Assert DRV8825 reset_n
+	digitalWrite(sleep_n, HIGH);	
+	digitalWrite(enable_n,HIGH);	// Disable
 	digitalWrite(M0,   	LOW);
 	digitalWrite(M1,   	LOW);
 	digitalWrite(M2, 	LOW);
-	digitalWrite(reset_n, LOW);
-	digitalWrite(sleep_n, LOW);
-	digitalWrite(enable_n,HIGH);
+
+	// De-assert drv8825 reset_n
+	digitalWrite(reset_n, HIGH);
 	
 	// set the maximum speed, acceleration factor,
 	// initial speed and the target position
@@ -129,6 +131,7 @@ void setup() {
 // MAIN LOOP
 //---------------------------------------------------------------------------------
 void loop() {
+
 	// Get Button state
 	clk_state    = digitalRead(encoderClk);
 	button_state = digitalRead(encoderSwitch);
@@ -144,13 +147,20 @@ void loop() {
 		// Program new Stepper speed
 		myStepper.setMaxSpeed( speed_prog[motor_speed_cur][0] );
 		// Update microSteps factor
-		digitalWrite(M0,   	speed_prog[motor_speed_cur][3]);
-		digitalWrite(M1,   	speed_prog[motor_speed_cur][2]);
-		digitalWrite(M2, 	speed_prog[motor_speed_cur][1]);
-		// Define target
-		myStepper.moveTo(MAX_ROTATION);
-		// run to Target
-		myStepper.run();
+		digitalWrite(M0,   	  speed_prog[motor_speed_cur][3]);
+		digitalWrite(M1,   	  speed_prog[motor_speed_cur][2]);
+		digitalWrite(M2, 	  speed_prog[motor_speed_cur][1]);
+		digitalWrite(enable_n,speed_prog[motor_speed_cur][4]);
+
+	Serial.println("MaxSpeed, M2, M1, M0 , Enable_n");
+	Serial.println(speed_prog[motor_speed_cur][0]);
+	Serial.println(speed_prog[motor_speed_cur][1]);
+	Serial.println(speed_prog[motor_speed_cur][2]);
+	Serial.println(speed_prog[motor_speed_cur][3]);
+	Serial.println(speed_prog[motor_speed_cur][4]);
+
+		myStepper.moveTo(MAX_ROTATION);			// Define target
+		myStepper.run();						// run to Target
 		
 	} else {
 		
