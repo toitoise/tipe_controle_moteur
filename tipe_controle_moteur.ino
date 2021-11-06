@@ -105,7 +105,7 @@ void setup() {
 	// Outputs default value
 	digitalWrite(M0,   	LOW);
 	digitalWrite(M1,   	LOW);
-	digitalWrite(M2, 		LOW);
+	digitalWrite(M2, 	LOW);
 	digitalWrite(reset_n, LOW);
 	digitalWrite(sleep_n, LOW);
 	digitalWrite(enable_n,LOW);
@@ -113,7 +113,7 @@ void setup() {
 	// set the maximum speed, acceleration factor,
 	// initial speed and the target position
 	myStepper.setMaxSpeed(200);		//1sec primaire    / 1HZ  ==>secondaire 3HZ
-	//myStepper.setMaxSpeed(400);		//0.5sec primaire  / 2HZ  ==>secondaire 6HZ
+	//myStepper.setMaxSpeed(400);	//0.5sec primaire  / 2HZ  ==>secondaire 6HZ
 	//myStepper.setMaxSpeed(600);	//0.33sec primaire / 3HZ  ==>secondaire 9HZ
 	
 	myStepper.setAcceleration(100);
@@ -129,6 +129,7 @@ void setup() {
 // MAIN LOOP
 //---------------------------------------------------------------------------------
 void loop() {
+	// Get Button state
 	clk_state    = digitalRead(encoderClk);
 	button_state = digitalRead(encoderSwitch);
 
@@ -141,15 +142,21 @@ void loop() {
 		lcd.print(motor_speed_cur);
 		
 		// Program new Stepper speed
-		//myStepper.setSpeed(motor_speed_cur/10);
-		//myStepper.step(MAX_REVOLUTIONS);
-		 myStepper.setMaxSpeed( speed_prog[motor_speed_cur][0] );
-		 myStepper.moveTo(MAX_ROTATION);
-		 myStepper.run();
+		myStepper.setMaxSpeed( speed_prog[motor_speed_cur][0] );
+		// Update microSteps factor
+		digitalWrite(M0,   	speed_prog[motor_speed_cur][3]);
+		digitalWrite(M1,   	speed_prog[motor_speed_cur][2]);
+		digitalWrite(M2, 	speed_prog[motor_speed_cur][1]);
+		// Define target
+		myStepper.moveTo(MAX_ROTATION);
+		// run to Target
+		myStepper.run();
+		
 	} else {
+		
 		// CLK Rising Edge
 		if ((clk_state_last == LOW) && (clk_state == HIGH)) {
-			// Read rotary Data pin to know which direction
+			// Read rotary Data pin to know which direction increase/decrease new speed
 			if (digitalRead(encoderData) == LOW) {
 				if (motor_speed_new < ligneTab)
 					motor_speed_new = motor_speed_new + 1;
@@ -169,18 +176,7 @@ void loop() {
 		// Save CLK current state to avoid new trigger
 		clk_state_last = clk_state;
 	}
-
  	
-	// Change direction once the motor reaches target position
-	//Serial.println(myStepper.distanceToGo());
-	if (myStepper.distanceToGo() == 0) {
-		myStepper.moveTo(myStepper.currentPosition());
-	}
-	
-	// Move the motor one step
-	//myStepper.runSpeed();
-	myStepper.run();
-	
 	// If time update then interrupt occurs (debug)
 	if (currentmillis!=previousmillis){
 		periode=(currentmillis-previousmillis)/3; // rapport engrenage de 3
