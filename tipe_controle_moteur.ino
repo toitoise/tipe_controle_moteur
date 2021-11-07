@@ -10,8 +10,8 @@
 //-------------------------------------------------------
 #define dir         	3
 #define step        	4
-#define sleep_n       	5		// not connected tied to VCC
-#define reset_n       	6
+#define sleep_n       5		// not connected tied to VCC
+#define reset_n       6
 #define M2        		7
 #define M1        		8
 #define M0		       	9
@@ -20,10 +20,10 @@
 //-------------------------------------------------------
 // Rotary encoder pins 
 //-------------------------------------------------------
-#define encoderClk    	4  // CLK
-#define encoderData   	5  // Data
-#define encoderSwitch 	6  // Switch Button
-
+#define encoderClk    	11  // CLK
+#define encoderData   	12  // Data
+#define encoderSwitch 	13  // Switch Button
+ 
 //-------------------------------------------------------
 // Comparator input pin with interrupt support
 //-------------------------------------------------------
@@ -32,7 +32,8 @@
 //-------------------------------------------------------
 // LCD 20x4 Declaration (i2c pins connexion)
 //-------------------------------------------------------
-#define POS_SPEED 11
+#define POS_SPEED 15
+#define POS_PER   15
 LiquidCrystal_I2C lcd(0x27, 20, 4);
 //LiquidCrystal_I2C lcd(0x3F,20,4);
 
@@ -55,7 +56,7 @@ unsigned long button_millis_cur = 0;
 // Variables traitement vitesse
 int motor_speed_cur     = 0;     // current speed
 int motor_speed_new     = 0;     // new speed
-#define MAX_ROTATION	200000
+#define MAX_ROTATION	400000
 
 //-------------------------------------------------
 // M0		M1		M2		Microstep resolution
@@ -73,19 +74,23 @@ const int microsteps[] = {1,2,4,8,16,32,32,32};
 unsigned int microsteps_ratio=0;
 
 #define ligneTab 	10   		// 0 à 9
-#define colonneTab 	5   		// 0 à 4
+#define colonneTab 	6   		// 0 à 5
 const int speed_prog[ligneTab][colonneTab] = {  
-	      //MaxSpeed, M2, M1, M0 , Enable_n
-/*00*/	{	100,	    0, 	0, 	0,   1} ,    // Stop
-/*01*/	{	64 ,	    1, 	1, 	1,   0} ,   	// 10s		0.1 Hz    600rpm
-/*02*/	{	85 ,	    1, 	1, 	1,   0} ,   	// 7.5s		0.13Hz    450rpm
-/*03*/	{	64 ,	    1, 	0, 	0,   0} ,   	// 5.0s		0.2 Hz    300rpm
-/*04*/	{	128,	    1, 	0, 	0,   0} ,    // 2.5s		0.4 Hz    150rpm
-/*05*/	{	160,	    0, 	1, 	1,   0} ,   	// 1.0s		1.0 Hz    60 rpm
-/*06*/	{	213,	    0, 	1, 	1,   0} ,   	// 0.75s	1.33Hz    45 rpm
-/*07*/	{ 160,	    0, 	1, 	0,   0} ,   	// 0.50s	2.0 Hz    30 rpm
-/*08*/	{	160,	    0, 	0, 	1,   0} ,   	// 0.25s	4.0 Hz    15 rpm
-/*09*/	{	200,	    0, 	0, 	0,   0}     	// 0.10s	10	Hz     6 rpm
+	      //MaxSpeed, M2, M1, M0 , Enable_n, target(ms) 
+/*00*/	{   0,	    0, 	0, 	0,   1,        0    } ,   // Stop
+/*01*/	{	213 ,	    1, 	0, 	1,   0,        10000} ,   // 10s		0.1 Hz    6  rpm     ~10033ms
+/*02*/	{	285 ,	    1, 	0, 	1,   0,        7500 } ,   // 7.5s		0.13Hz    15 rpm     ~ 7503ms
+/*03*/	{	426 ,	    1, 	0, 	1,   0,        5000 } ,   // 5.0s		0.2 Hz    30 rpm     ~ 5016ms
+/*04*/	{	214,	    0, 	1, 	1,   0,        2500 } ,   // 2.5s		0.4 Hz    45 rpm     ~ 2497ms
+/*05*/	{	267,	    0, 	1, 	0,   0,        1000 } ,   // 1.0s		1.0 Hz    60 rpm     ~ 1001ms
+/*06*/	{	357,	    0, 	1,  0,   0,        750  } ,   // 0.75s	1.33Hz    150 rpm    ~  751ms
+/*07*/  { 267,      0,  0,  1,   0,        500  } ,   // 0.50s  2.0 Hz    120 rpm    ~  500ms
+/*08*/  { 534,      0,  0,  1,   0,        250  } ,   // 0.25s  4.0 Hz    240 rpm    ~  250ms
+/*09*/  { 535,      0,  0,  0,   0,        125  }     // 0.125s 8.0 Hz    480 rpm    ~  *ms
+
+/*  Autres parametres de réglages possibles
+{ 666,      0,  0,  0,   0,        100  }     // 0.10s  10  Hz    600 rpm    ~  101ms
+ */
 };
 
 //---------------------------------------------------------------------------------
@@ -94,7 +99,7 @@ const int speed_prog[ligneTab][colonneTab] = {
 void setup() {
 	Serial.begin(115200);
 	Serial.println("Enter Setup");
-	
+	Wire.setClock(400000);
 	// Outputs definitions
 	pinMode(reset_n, 	OUTPUT);
 	pinMode(sleep_n, 	OUTPUT);
@@ -122,16 +127,12 @@ void setup() {
 	
 	// set the maximum speed, acceleration factor,
 	// initial speed and the target position
-	myStepper.setMaxSpeed(200);		//1sec primaire    / 1HZ  ==>secondaire 3HZ
-	//myStepper.setMaxSpeed(400);	//0.5sec primaire  / 2HZ  ==>secondaire 6HZ
-	//myStepper.setMaxSpeed(600);	//0.33sec primaire / 3HZ  ==>secondaire 9HZ
-	
+	//myStepper.setMaxSpeed(200);	
 	myStepper.setAcceleration(100);
-	//myStepper.setSpeed(100);
-	myStepper.moveTo(200000);
-	
+
 	// Active l'interruption sur la pin 2
 	attachInterrupt(digitalPinToInterrupt(comparator), interrupt_tachymeter, RISING );
+
 	// initialisation de l'afficheur / Message d'accueil
 	lcd.init(); 
 	lcd.backlight();
@@ -139,9 +140,17 @@ void setup() {
 	lcd.print("Hello, Half-God!");
 	lcd.setCursor(4, 1);
 	lcd.print("Motor Control");
-	delay(5000);
+	delay(3000);
 	lcd.clear();
- 
+  // prepare screen
+  lcd.setCursor(0, 0);
+  lcd.print("Select level 0 to 9");
+    lcd.setCursor(0, 1);
+    lcd.print(" Speed level : ");
+    lcd.setCursor(0, 2);
+    lcd.print(" New level   : ");
+    lcd.setCursor(0, 3);
+    lcd.print(" Periode(ms) : ");
 	Serial.println("Exit Setup");
 }
 
@@ -149,45 +158,47 @@ void setup() {
 // MAIN LOOP
 //---------------------------------------------------------------------------------
 void loop() {
-
 	// Get Button state
 	clk_state         = digitalRead(encoderClk);
 	button_state      = digitalRead(encoderSwitch);
   button_millis_cur = millis();
-  
+  // Run Stepper to Target
+  myStepper.run();                    
+ 
   // check state and add debouncer
 	if (button_state == LOW && (button_millis_cur - button_millis_save)>500) {
    button_millis_save=millis();
 		// Set NEW speed
-		motor_speed_cur = motor_speed_new;	// update click
-		lcd.clear();
-		lcd.setCursor(0, 0);
-		lcd.print("Cur Speed: ");
-		lcd.print(motor_speed_cur);
-		
-		// Program new Stepper speed
+		motor_speed_cur = motor_speed_new;	// updated on click
+
+    lcd.setCursor(POS_SPEED, 1);
+		lcd.print(motor_speed_cur,DEC );
+    lcd.setCursor(POS_PER, 3);
+    lcd.print(speed_prog[motor_speed_cur][5],DEC );
+    // Program new Stepper speed
 		myStepper.setMaxSpeed( speed_prog[motor_speed_cur][0] );
-		// Update microSteps factor
+    myStepper.moveTo(MAX_ROTATION);     // Define target
+
+    // Update microSteps factor
 		digitalWrite(M0,   	  speed_prog[motor_speed_cur][3]);
 		digitalWrite(M1,   	  speed_prog[motor_speed_cur][2]);
 		digitalWrite(M2, 	  speed_prog[motor_speed_cur][1]);
 		digitalWrite(enable_n,speed_prog[motor_speed_cur][4]);
 
-   microsteps_ratio=microsteps[ speed_prog[motor_speed_cur][3] | (speed_prog[motor_speed_cur][2]<<1) | (speed_prog[motor_speed_cur][1]<<2) ];
+//  microsteps_ratio=microsteps[ speed_prog[motor_speed_cur][3] | (speed_prog[motor_speed_cur][2]<<1) | (speed_prog[motor_speed_cur][1]<<2) ];
+//  double rpm_speed= (speed_prog[motor_speed_cur][0] * 3 )/microsteps_ratio;
 
-  double rpm_speed= (speed_prog[motor_speed_cur][0] * 3 )/microsteps_ratio;
+//	Serial.println("MaxSpeed, M2, M1, M0 , Enable_n");
+//	Serial.println(speed_prog[motor_speed_cur][0]);
+//  Serial.println(microsteps_ratio);
+//  Serial.println(rpm_speed);
+//  Serial.println(myStepper.maxSpeed( ));
 
-	Serial.println("MaxSpeed, M2, M1, M0 , Enable_n");
-	Serial.println(speed_prog[motor_speed_cur][0]);
-  Serial.println(microsteps_ratio);
-  Serial.println(rpm_speed);
-
-		myStepper.moveTo(MAX_ROTATION);			// Define target
-		myStepper.run();						// run to Target
-		
 	} else {
 		
-		// CLK Rising Edge
+		// CLK Rising Edge du bouton rotatif
+    // Sur le front montant (RISING) on regarde ce que vaut la Data
+    // pour savoir si on tourne dans un sens ou dans l'autre.
 		if ((clk_state_last == LOW) && (clk_state == HIGH)) {
 			// Read rotary Data pin to know which direction increase/decrease new speed
 			if (digitalRead(encoderData) == LOW) {
@@ -200,22 +211,29 @@ void loop() {
 	
 			// Display new speed based on rotary button direction
 			Serial.println (motor_speed_new );	//debug
-			//lcd.clear();
-			lcd.setCursor(0, 1);
-			lcd.print("New Speed:      ");
-			lcd.setCursor(POS_SPEED, 1);
+			lcd.setCursor(POS_SPEED, 2);
 			lcd.print(motor_speed_new);
-		}
+      lcd.setCursor(POS_PER, 3);
+      lcd.setCursor(POS_PER, 3);
+      lcd.print("     ");
+      lcd.setCursor(POS_PER, 3);
+      lcd.print(speed_prog[motor_speed_new][5],DEC );
+    }
 		// Save CLK current state to avoid new trigger
 		clk_state_last = clk_state;
 	}
- 	
+ 
+  
 	// If time update then interrupt occurs (debug)
 	if (currentmillis!=previousmillis){
 		periode=(currentmillis-previousmillis)/3; // rapport engrenage de 3
-		Serial.print("Periode(ms):");
-		Serial.println(periode);
-		previousmillis = currentmillis;
+    previousmillis = currentmillis;
+    
+    // Envoi de la periode sur le lien série car sur le LCD 
+    // car provoque un petit hocquet sur la rotation
+    //    lcd.setCursor(POS_PER, 3);
+    //		lcd.print(periode);
+    Serial.println(periode);
 	}
 }
 
