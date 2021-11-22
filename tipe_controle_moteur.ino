@@ -1,9 +1,9 @@
 // Include the AccelStepper Library
 #include <AccelStepper.h>
 #include <Wire.h>
-#include <Stepper.h>
+//#include <Stepper.h>
 #include <LiquidCrystal_I2C.h>
-#include <math.h>
+//#include <math.h>
 
 //-------------------------------------------------------
 // Define drv8825 pin connections to Arduino UNO
@@ -101,7 +101,6 @@ const int speed_prog[ligneTab][colonneTab] = {
 void setup() {
 	Serial.begin(115200);				// Definit le debit du bus rs232/Serie
 	Serial.println("Enter Setup");
-	Wire.setClock(400000);				// Augmente la frequence de l'I2C 400KHz au lieu de 100KHz
 	// Outputs definitions
 	pinMode(reset_n, 	OUTPUT);
 	pinMode(sleep_n, 	OUTPUT);
@@ -153,6 +152,10 @@ void setup() {
 	lcd.print(" New level   : ");
 	lcd.setCursor(0, 3);
 	lcd.print(" Periode(ms) : ");
+	
+	// Initialise la frequence de l'I2C apres l'init du LCD
+	//Wire.setClock(400000);				// Augmente la frequence de l'I2C 400KHz au lieu de 100KHz
+	Wire.setClock(650000);				// On test un peu plus vite
 	Serial.println("Exit Setup");
 }
 
