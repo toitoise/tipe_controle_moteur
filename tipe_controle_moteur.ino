@@ -4,7 +4,7 @@
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
 #include "projet_definitions.h"
-
+#include <math.h>
 // Instancie le LCD 20x4
 LiquidCrystal_I2C lcd(0x27, 20, 4);
 
@@ -40,13 +40,13 @@ void setup() {
   digitalWrite(M2, 	  LOW);
 
   // De-Assert drv8825 reset_n
-  digitalWrite(reset_n, HIGH);
+  digitalWrite(reset_n, HIGH);  // deactivate reset
+  //digitalWrite(enable_n, LOW);  // enable 
+  myStepper.setAcceleration( DEFAULT_ACCEL );  
+  myStepper.setMaxSpeed    ( DEFAULT_MAX_SPEED );
+  myStepper.setSpeed       ( DEFAULT_MAX_SPEED/5 );
 
-  // set the maximum speed at begenning
-  myStepper.setMaxSpeed(0);
-  // Set initial acceleration factor
-  myStepper.setAcceleration(DEFAULT_ACCEL);
-
+  delay(10);
   // initialisation de l'afficheur / Message d'accueil
   lcd.init();               // Attention réduit la frequence de l'I2C a 100KHz
   lcd.backlight();
@@ -68,10 +68,13 @@ void setup() {
 
   // Active l'interruption sur la pin 2 venant du comparateur LM393
   attachInterrupt(digitalPinToInterrupt(comparator_pin), interrupt_tachymeter, RISING );
-  
+
+  nb_of_turns_to_go = MAX_ROTATION;       // Assign default NB tours
+
   // Initialise la frequence de l'I2C apres l'init du LCD
   //Wire.setClock(400000);				// Augmente la frequence de l'I2C 400KHz au lieu de 100KHz
   Wire.setClock(850000);				// On test un peu plus vite
+  stopMotor();
   Serial.println("Exit Setup");
 }
 
@@ -79,15 +82,13 @@ void setup() {
 // MAIN LOOP
 //---------------------------------------------------------------------------------
 void loop() {
-  debug1();
- 
   // Get Button state
   clk_state         = digitalRead(encoderClk);
   button_state      = digitalRead(encoderSwitch);
   button_millis_cur = millis();
-  
+
   // Run Stepper to Target if not reach position
-  if (myStepper.currentPosition()>=MAX_ROTATION) {
+  if (myStepper.currentPosition() >= computed_steps_for_rotation) {
     stopMotor();
   } else {
     myStepper.run();
@@ -98,20 +99,21 @@ void loop() {
     button_millis_save = millis();
     // Set NEW speed
     motor_speed_cur = motor_speed_new;	// updated on button'click
-
+    // Display on LCD new selection
     lcd.setCursor(POS_SPEED_COL, POS_SPEED_LIG);
     lcd.print(motor_speed_cur, DEC );
-
     // Program new Stepper speed & Update microSteps factor
-    myStepper.setMaxSpeed( speed_prog[motor_speed_cur][0] );
-    digitalWrite(M0,   	  speed_prog[motor_speed_cur][3]);
-    digitalWrite(M1,   	  speed_prog[motor_speed_cur][2]);
-    digitalWrite(M2, 	    speed_prog[motor_speed_cur][1]);
+    digitalWrite(reset_n,  HIGH);
     digitalWrite(enable_n, speed_prog[motor_speed_cur][4]);
-    delay(10);
-    myStepper.setCurrentPosition(0);
-    myStepper.moveTo(MAX_ROTATION);     // Define target
-
+    digitalWrite(M0,   	   speed_prog[motor_speed_cur][3]);
+    digitalWrite(M1,   	   speed_prog[motor_speed_cur][2]);
+    digitalWrite(M2, 	     speed_prog[motor_speed_cur][1]);
+    myStepper.setAcceleration( speed_prog[motor_speed_cur][7] );  
+    myStepper.setMaxSpeed    ( speed_prog[motor_speed_cur][0] );
+    myStepper.setCurrentPosition(0);    // reset position to 0
+    computed_steps_for_rotation = speed_prog[motor_speed_cur][6] * nb_of_turns_to_go;
+    myStepper.moveTo(computed_steps_for_rotation);     // Define new Position Target
+    previousmillis=millis();
   } else {
 
     // CLK Rising Edge du bouton rotatif
@@ -128,7 +130,7 @@ void loop() {
       }
 
       // Display new speed based on rotary button direction
-      Serial.println (motor_speed_new );	//debug
+      //Serial.println (motor_speed_new );	//debug
       lcd.setCursor(NEW_POS_SPEED_COL, NEW_POS_SPEED_LIG);
       lcd.print(motor_speed_new, DEC);
       lcd.setCursor(NEW_POS_PER_COL, NEW_POS_PER_LIG);
@@ -142,11 +144,16 @@ void loop() {
 
   // If time updates then interrupt occured (debug)
   if (currentmillis != previousmillis) {
-    periode = (currentmillis - previousmillis) / RATIO_ENGRENAGE; 
-    previousmillis = currentmillis;
+    if (currentmillis > previousmillis) {
+      periode = (currentmillis - previousmillis) / RATIO_ENGRENAGE;
+      previousmillis = currentmillis;
+    } else {
+      periode = ( previousmillis - currentmillis) / RATIO_ENGRENAGE;
+      currentmillis = previousmillis ;
+    }
     // Envoi de la periode sur le lien série car sur le LCD
     // ca provoque un petit hocquet sur la rotation
-    Serial.println(periode);
+    Serial.print("Periode(ms)=");Serial.println(periode);
   }
 }
 
@@ -161,9 +168,15 @@ void interrupt_tachymeter() {
 //---------------------------------------------------------------
 // Stop Motor and disable to reduce consumption
 //---------------------------------------------------------------
-void stopMotor(){
-    myStepper.stop();
-    digitalWrite(enable_n, HIGH);  // Disable at beginning
+void stopMotor() {
+  myStepper.stop();
+  digitalWrite(enable_n, HIGH);  // Disable
+  //digitalWrite(reset_n, LOW);  // reset
+}
+
+
+int compute_steps_for_one_rotation(int current_prog_speed ) {
+  return speed_prog[current_prog_speed][6];
 }
 
 //---------------------------------------------------------------
