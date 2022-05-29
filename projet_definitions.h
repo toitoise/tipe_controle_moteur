@@ -1,4 +1,9 @@
 //-------------------------------------------------------
+// EEPROM rotations  (unsigned long int)
+//-------------------------------------------------------
+#define EEPROM_ADDR_ROTATION_SAVED 0
+
+//-------------------------------------------------------
 // Define drv8825 pin connections to Arduino UNO
 //-------------------------------------------------------
 #define dir       3
@@ -31,8 +36,8 @@ volatile unsigned long currentmillis  = 0;
 volatile unsigned long previousmillis = 0;
 
 // Variables traitement bouton rotatif et click
-int clk_state_last      = LOW;            // Idle
-int clk_state           = LOW;            // Idle
+int clk_state_last      = HIGH;           // Idle
+int clk_state           = HIGH;            // Idle
 int button_state        = HIGH;           // Not pressed
 unsigned long button_millis_save = 0;
 unsigned long button_millis_cur = 0;
@@ -81,8 +86,8 @@ const int speed_prog[ligneTab][colonneTab] = {
 //-------------------------------------------------------
 // Various for MOTOR and ACCEL
 //-------------------------------------------------------
-#define MAX_ROTATION        5      // Max steps for motor
-
+#define MAX_ROTATIONS       100      // Max steps for motor
+#define HIGHER_BOUNDARY_ROTATIONS 10000
 #define motorInterfaceType  1       // Motor interface type (DRV8825 dir+steps)
 #define DEFAULT_MAX_SPEED   100     // At beginning
 #define DEFAULT_ACCEL       100    // Steps to max speed
@@ -95,9 +100,11 @@ long computed_steps_for_rotation=0;
 //-------------------------------------------------------
 // LCD 20x4 Declaration (i2c pins connexion)
 //-------------------------------------------------------
-#define POS_SPEED_COL       15
-#define POS_SPEED_LIG       1
-#define NEW_POS_SPEED_COL   15
-#define NEW_POS_SPEED_LIG   2
-#define NEW_POS_PER_COL     15
-#define NEW_POS_PER_LIG     3
+#define POS_CURPER_COL       15
+#define POS_CURPER_LIG       1
+
+#define POS_NEWPER_COL     15
+#define POS_NEWPER_LIG     2
+
+#define POS_NB_ROTATION_COL     15
+#define POS_NB_ROTATION_LIG     3
