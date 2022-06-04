@@ -47,15 +47,15 @@ int motor_speed_cur     = 0;     // current speed
 int motor_speed_new     = 0;     // new speed
 
 //-------------------------------------------------
-// M0   M1    M2    Microstep resolution
-// Low    Low   Low   Full step
-// High   Low   Low   1/2 step
-// Low    High  Low   1/4 step
-// High   High  Low   1/8 step
-// Low    Low   High  1/16 step
-// High   Low   High  1/32 step
-// Low    High  High  1/32 step
-// High   High  High  1/32 step
+// M2    M1    M0    Microstep resolution
+// Low   Low   Low   Full step
+// Low   Low   High  1/2 step
+// Low   High  Low   1/4 step
+// Low   High  High  1/8 step
+// High  Low   Low   1/16 step
+// High  Low   High  1/32 step
+// High  High  Low   1/32 step
+// High  High  High  1/32 step
 //-------------------------------------------------
 const int microsteps[] = { 1, 2, 4, 8, 16, 32, 32, 32};
 #define MICROSTEPS_TAB_SIZE sizeof(microsteps)/sizeof(int)
@@ -63,17 +63,17 @@ const int microsteps[] = { 1, 2, 4, 8, 16, 32, 32, 32};
 #define ligneTab    10      // 0 à 9
 #define colonneTab  8       // 0 à 7
 const int speed_prog[ligneTab][colonneTab] = {
-  //      MaxSpeed, M2, M1, M0 , Enable_n, target(ms), nb_steps_one_revolution, Accel_for_smoothness
-  /*00*/  { 0,      0,  0,  0,   1,        0           , 0     , 0   } ,   // Stop
-  /*01*/  { 213,    1,  0,  1,   0,        10000       , 2150  , 800 } ,   // 10s     0.1 Hz    6  rpm     ~10033ms
-  /*02*/  { 285,    1,  0,  1,   0,        7500        , 2150  , 900 } ,   // 7.5s    0.13Hz    15 rpm     ~ 7503ms
-  /*03*/  { 428,    1,  0,  1,   0,        5000        , 2150  , 1000 } ,   // 5.0s    0.2 Hz    30 rpm     ~ 5016ms
-  /*04*/  { 855,    1,  0,  1,   0,        2500        , 2150  , 1200} ,   // 2.5s    0.4 Hz    45 rpm     ~ 2497ms
-  /*05*/  { 1080,   1,  0,  0,   0,        1000        , 1060  , 3000} ,   // 1.0s    1.0 Hz    60 rpm     ~ 1001ms
-  /*06*/  { 717,    0,  1,  1,   0,        750         , 530   , 3000} ,   // 0.75s   1.33Hz    150 rpm    ~  751ms
-  /*07*/  { 1080,   0,  1,  1,   0,        500         , 530   , 3000} ,   // 0.50s   2.0 Hz    120 rpm    ~  500ms
-  /*08*/  { 1076,   0,  1,  0,   0,        250         , 266   , 3000} ,   // 0.25s   4.0 Hz    240 rpm    ~  250ms
-  /*09*/  { 805,    0,  0,  1,   0,        167         , 134   , 3000}     // 0.167s  6.0 Hz    360 rpm    ~  167ms
+  //      MaxSpeed, M2, M1, M0, Enable_n, target(ms), nb_steps_one_revolution, Accel_for_smoothness
+  /*00*/  {      0,  0,  0,  0,        1,      0    ,                       0, 0       } ,   // Stop
+  /*01*/  {    213,  1,  0,  1,        0,      10000,                    2150, 800     } ,   // 10s     0.1 Hz   obs~10033ms
+  /*02*/  {    285,  1,  0,  1,        0,      7500 ,                    2150, 900     } ,   // 7.5s    0.13Hz   obs~ 7503ms
+  /*03*/  {    428,  1,  0,  1,        0,      5000 ,                    2150, 1000    } ,   // 5.0s    0.2 Hz   obs~ 5016ms
+  /*04*/  {    855,  1,  0,  1,        0,      2500 ,                    2150, 1200    } ,   // 2.5s    0.4 Hz   obs~ 2497ms
+  /*05*/  {   1080,  1,  0,  0,        0,      1000 ,                    1060, 3000    } ,   // 1.0s    1.0 Hz   obs~ 1001ms
+  /*06*/  {    717,  0,  1,  1,        0,      750  ,                    530 , 3000    } ,   // 0.75s   1.33Hz   obs~  751ms
+  /*07*/  {   1080,  0,  1,  1,        0,      500  ,                    530 , 3000    } ,   // 0.50s   2.0 Hz   obs~  500ms
+  /*08*/  {   1076,  0,  1,  0,        0,      250  ,                    266 , 3000    } ,   // 0.25s   4.0 Hz   obs~  250ms
+  /*09*/  {    805,  0,  0,  1,        0,      167  ,                    134 , 3000    }     // 0.167s  6.0 Hz   obs~  167ms
 
 // OLD OK 
 //  /*04*/  { 214,    0,  1,  1,   0,        2500        , 530 } ,   // 2.5s    0.4 Hz    45 rpm     ~ 2497ms
